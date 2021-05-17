@@ -1,0 +1,12 @@
+model_checkpoint_path: "agent-302000"
+all_model_checkpoint_paths: "agent-298000"
+all_model_checkpoint_paths: "agent-299000"
+all_model_checkpoint_paths: "agent-300000"
+all_model_checkpoint_paths: "agent-301000"
+all_model_checkpoint_paths: "agent-302000"
+all_model_checkpoint_timestamps: 1621292401.8428788
+all_model_checkpoint_timestamps: 1621292490.661035
+all_model_checkpoint_timestamps: 1621292579.5125766
+all_model_checkpoint_timestamps: 1621293457.0669208
+all_model_checkpoint_timestamps: 1621293583.2313068
+last_preserved_timestamp: 1621006045.3857515

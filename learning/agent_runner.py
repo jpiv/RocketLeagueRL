@@ -1,5 +1,8 @@
 from tensorforce import Agent, Environment
+from rl_environments.rl_env import RLEnvironment
 from rl_environments.kickoff_env import KickoffEnvironment
+from rl_environments.shooting_env import ShootingEnvironment
+from rl_environments.game_values import InputOptions
 from runner import Runner
 from tensorforce.core.networks.auto import AutoNetwork
 
@@ -9,21 +12,33 @@ from tensorforce.core.networks.auto import AutoNetwork
 # )
 
 def create_agent():
-    max_time = 10
+    max_time = 7 
     frames_per_sec = 20
-    max_timesteps = KickoffEnvironment.get_max_timesteps(max_time, frames_per_sec)
+    max_timesteps = RLEnvironment.get_max_timesteps(max_time, frames_per_sec)
     env = Environment.create(
-        environment=KickoffEnvironment,
+        environment=ShootingEnvironment,
         max_episode_timesteps=max_timesteps,
         # My custom kwargs 
         # Max time in seconds
         max_time=max_time,
         frames_per_sec=frames_per_sec,
-        name='kickoff',
-        message_throttle = 20,
-        input_exclude=[],
+        name='shooting',
+        message_throttle = 10,
+        input_exclude=[InputOptions.BALL_POSITION, InputOptions.CAR_HEIGHT, InputOptions.CAR_POSITION],
         output_exclude=[]
     )
+    # env = Environment.create(
+    #     environment=KickoffEnvironment,
+    #     max_episode_timesteps=max_timesteps,
+    #     # My custom kwargs 
+    #     # Max time in seconds
+    #     max_time=max_time,
+    #     frames_per_sec=frames_per_sec,
+    #     name='kickoff',
+    #     message_throttle = 20,
+    #     input_exclude=[],
+    #     output_exclude=[]
+    # )
     # Instantiate a Tensorforce agent
     # agent = dict(
     #     agent='double_dqn',

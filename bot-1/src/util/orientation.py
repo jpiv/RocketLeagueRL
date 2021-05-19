@@ -3,6 +3,12 @@ import math
 from util.vec import Vec3
 
 
+class LeftOrientation():
+    def __init__(self):
+        self.forward = Vec3(1, 0, 0)
+        self.right = Vec3(0, 1, 0)
+        self.up = Vec3(0, 0, 1)
+
 # This is a helper class for calculating directions relative to your car. You can extend it or delete if you want.
 class Orientation:
     """

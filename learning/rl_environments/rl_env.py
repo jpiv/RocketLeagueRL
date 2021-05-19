@@ -6,8 +6,8 @@ from rlbot.utils import public_utils, logging_utils
 import sys
 sys.path.append('C:\\Users\\John\\Desktop\\stuff\\RLBots\\bot-1\\src')
 from util.vec import Vec3
-from util.orientation import Orientation
-from .game_values import InputOptions, OutputOptions
+from util.orientation import Orientation, relative_location
+from .game_values import InputOptions, OutputOptions, GameValues
 
 # Environment for Rocket League training
 class RLEnvironment(Environment):
@@ -22,10 +22,9 @@ class RLEnvironment(Environment):
 		self.frames_per_sec = frames_per_sec
 		self.fail = False
 		self.rl_state = {}
-		self.ball_velocity = 0
+		self.game_tick = None 
 		self.comms = None
 		self.timestep = 0
-		self.max_ball_v = 0
 		self.ep_reward = 0
 		self.max_ep_reward = 0
 		self.agent = None
@@ -39,21 +38,21 @@ class RLEnvironment(Environment):
 	def setComms(self, comms):
 		self.comms = comms
 
+	def filter_states(self, states):
+		return { key:val for key, val in states.items() if key not in self.input_exclude }
+
 	def setRLState(self, game_tick):
 		my_car = game_tick.game_cars[0]
 		car_location = Vec3(my_car.physics.location)
 		car_rotation = Orientation(my_car.physics.rotation)
 		car_velocity = Vec3(my_car.physics.velocity)
 		ball_location = Vec3(game_tick.game_ball.physics.location)
-		ball_velocity = (
-			game_tick.game_ball.physics.velocity.x +
-			game_tick.game_ball.physics.velocity.y +
-			game_tick.game_ball.physics.velocity.z
-		)
+		ball_location_rel = relative_location(car_location, car_rotation, ball_location)
+		goal_location = Vec3(0, GameValues.GOAL_CENTER_Y, GameValues.GOAL_CENTER_Z)
+		car_location_rel = relative_location(goal_location, car_rotation, car_location)
 		dist = car_location.dist(ball_location)
 
-
-		self.ball_velocity = ball_velocity
+		self.game_tick = game_tick
 
 		self.rl_state = {
 			InputOptions.BALL_DISTANCE: [dist],
@@ -67,9 +66,13 @@ class RLEnvironment(Environment):
 			InputOptions.JUMPED: [my_car.jumped],
 			InputOptions.DOUBLE_JUMPED: [my_car.double_jumped],
 			InputOptions.BALL_POSITION: ball_location.as_arr(),
-			InputOptions.CAR_POSITION: car_location.as_arr()
+			InputOptions.CAR_POSITION: car_location.as_arr(),
+			InputOptions.BALL_POSITION_REL: ball_location_rel.as_arr(),
+			InputOptions.BALL_DIRECTION: ball_location_rel.normalized().as_arr(),
+			InputOptions.CAR_POSITION_REL: car_location_rel.as_arr(),
+			InputOptions.CAR_VELOCITY_MAG: [car_velocity.length()],
 		}
-		return self.rl_state
+		return self.filter_states(self.rl_state)
 
 	def states(self):
 		# Ball distance
@@ -78,8 +81,8 @@ class RLEnvironment(Environment):
 			InputOptions.BALL_DISTANCE: {
 				"type": "float",
 				"shape": 1,
-				"min_value": -13272,
-				"max_value": 13272,
+				"min_value": -GameValues.FIELD_MAX_DISTANCE,
+				"max_value": GameValues.FIELD_MAX_DISTANCE,
 			},
 			InputOptions.CAR_ORIENTATION: {
 				"type": "float",
@@ -91,13 +94,13 @@ class RLEnvironment(Environment):
 				"type": "float",
 				"shape": 1,
 				"min_value": 0,
-				"max_value": 2045,
+				"max_value": GameValues.FIELD_HEIGHT,
 			},
 			InputOptions.CAR_VELOCITY: {
 				"type": "float",
 				"shape": 3,
-				"min_value": -2301,
-				"max_value": 2301,
+				"min_value": -GameValues.CAR_MAX_VELOCITY,
+				"max_value": GameValues.CAR_MAX_VELOCITY,
 			},
 			InputOptions.JUMPED: {
 				"type": "bool",
@@ -110,17 +113,41 @@ class RLEnvironment(Environment):
 			InputOptions.CAR_POSITION: {
 				"type": "float",
 				"shape": 3,
-				"min_value": -5120 - 881,
-				"max_value": 5120 + 881,
+				"min_value": GameValues.FIELD_MIN_Y,
+				"max_value": GameValues.FIELD_MAX_Y,
 			},
 			InputOptions.BALL_POSITION: {
 				"type": "float",
 				"shape": 3,
-				"min_value": -5120 - 881,
-				"max_value": 5120 + 881,
-			}
+				"min_value": GameValues.FIELD_MIN_Y,
+				"max_value": GameValues.FIELD_MAX_Y,
+			},
+			InputOptions.BALL_POSITION_REL: {
+				"type": "float",
+				"shape": 3,
+				"min_value": -GameValues.FIELD_MAX_DISTANCE,
+				"max_value": GameValues.FIELD_MAX_DISTANCE,
+			},
+			InputOptions.BALL_DIRECTION: {
+				"type": "float",
+				"shape": 3,
+				"min_value": -1,
+				"max_value": 1,
+			},
+			InputOptions.CAR_POSITION_REL: {
+				"type": "float",
+				"shape": 3,
+				"min_value": -GameValues.FIELD_MAX_DISTANCE,
+				"max_value": GameValues.FIELD_MAX_DISTANCE,
+			},
+			InputOptions.CAR_VELOCITY_MAG: {
+				"type": "float",
+				"shape": 1,
+				"min_value": -GameValues.CAR_MAX_VELOCITY,
+				"max_value": GameValues.CAR_MAX_VELOCITY,
+			},
 		}
-		return { key:val for key, val in all_state_options.items() if key not in self.input_exclude }
+		return self.filter_states(all_state_options)
 
 	def actions(self):
 		return {
@@ -132,7 +159,30 @@ class RLEnvironment(Environment):
 				"type": "int",
 				"shape": 1,
 				"num_values": 3,
-			}
+			},
+			OutputOptions.ROLL: {
+				"type": "int",
+				"shape": 1,
+				"num_values": 3,
+			},
+			OutputOptions.STEER: {
+				"type": "int",
+				"shape": 1,
+				"num_values": 3,
+			},
+			OutputOptions.BOOST: {
+				"type": "bool",
+				"shape": 1,
+			},
+			OutputOptions.THROTTLE: {
+				"type": "int",
+				"shape": 1,
+				"num_values": 3,
+			},
+			OutputOptions.E_BRAKE: {
+				"type": "bool",
+				"shape": 1,
+			},
 		}
 
 	def set_agent(self, agent):
@@ -160,11 +210,11 @@ class RLEnvironment(Environment):
 		self.timestep = 0
 		self.ep += 1
 		self.fail = True
-		self.ball_velocity = 0
+		self.game_tick = None 
 		self.rl_state = {}
 		self.ep_reward = 0
 		self.comms and self.comms.outgoing_broadcast.empty()
-		return {
+		all_state_options = {
 			InputOptions.BALL_DISTANCE: [0],
 			InputOptions.BALL_POSITION: [0, 9, 9],
 			InputOptions.CAR_POSITION: [0, 0, 0],
@@ -172,14 +222,19 @@ class RLEnvironment(Environment):
 			InputOptions.CAR_HEIGHT: [0],
 			InputOptions.CAR_VELOCITY: [0, 0, 0],
 			InputOptions.JUMPED: [False],
-			InputOptions.DOUBLE_JUMPED: [False]
+			InputOptions.DOUBLE_JUMPED: [False],
+			InputOptions.BALL_POSITION_REL: [0, 500, 0],
+			InputOptions.BALL_DIRECTION: [0, 1, 0],
+			InputOptions.CAR_POSITION_REL: [0, -5000, 0],
+			InputOptions.CAR_VELOCITY_MAG: [0],
 		}
+		return self.filter_states(all_state_options)
 
 	def execute(self, actions):
 		self.timestep += 1
 
 		if (self.comms is not None):
-			serializable_actions = {key:val.tolist() for key, val in actions.items()}
+			serializable_actions = {key:val.tolist() for key, val in actions.items() if key not in self.output_exclude }
 			self.comms.outgoing_broadcast.put(serializable_actions)
 
 		self.throttled_log('Ep #{0}--------T:{1}'.format(self.ep, self.timestep))
@@ -188,7 +243,7 @@ class RLEnvironment(Environment):
 		self.throttled_log("Reward: {0:.2f}".format(self.ep_reward))
 
 		# State, terminal, reward
-		return self.rl_state, 1 if self.timestep >= self.max_timesteps else 0, reward
+		return self.filter_states(self.rl_state), 1 if self.timestep >= self.max_timesteps else 0, reward
 
 	def reward(self):
 		raise NotImplementedError

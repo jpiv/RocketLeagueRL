@@ -1,6 +1,10 @@
 from dataclasses import dataclass
 from rlbot.utils import public_utils, logging_utils
 
+import sys
+sys.path.append('C:\\Users\\John\\Desktop\\stuff\\RLBots\\bot-1\\src')
+from util.vec import Vec3
+
 from .rl_env import RLEnvironment
 from .game_values import InputOptions
 
@@ -11,8 +15,9 @@ class KickoffEnvironment(RLEnvironment):
 		MAX_CAR_VELOCITY = 2300
 		MAX_DRIVING_VELOCITY = 1410
 		BASE_BALL_VEL =  MAX_DRIVING_VELOCITY - 200
+		ball_velocity = Vec3(self.game_tick.game_ball.physics.velocity).length()
 		normalized_ball_velocity = (
-			pow(max(abs(self.ball_velocity), 0), 4) * 10
+			pow(max(abs(ball_velocity), 0), 4) * 10
 			/ pow(MAX_BALL_VEL, 4)
 		)
 

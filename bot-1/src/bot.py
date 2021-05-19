@@ -19,12 +19,13 @@ from queue import Empty
 import os
 import sys
 sys.path.append('C:\\Users\\John\\Desktop\\stuff\\RLBots\\learning')
-from rl_environments.game_values import OutputOptions
+from rl_environments.game_values import OutputOptions, InputOptions
 from rl_environments.kickoff_env import KickoffEnvironment
+from rl_environments.rl_env import RLEnvironment
 from tensorforce import Agent, Environment
 
 MODEL = None
-# MODEL = 'best/kickoff'
+# MODEL = 'models/kickoff_no_boost_standalone'
 
 class MyBot(BaseAgent):
     def __init__(self, name, team, index):
@@ -42,9 +43,31 @@ class MyBot(BaseAgent):
         # Set up information about the boost pads now that the game is active and the info is available
         self.boost_pad_tracker.initialize_boosts(self.get_field_info())
         if MODEL is not None:
-            self.env = Environment.create(environment=KickoffEnvironment, max_episode_timesteps=100)
+            max_time = 10
+            frames_per_sec = 20
+            max_timesteps = RLEnvironment.get_max_timesteps(max_time, frames_per_sec)
+            self.env = Environment.create(
+                environment=KickoffEnvironment,
+                max_episode_timesteps=max_timesteps,
+                max_time=max_time,
+                message_throttle=20,
+                frames_per_sec=frames_per_sec,
+                input_exclude=[
+                    InputOptions.BALL_POSITION_REL,
+                    InputOptions.BALL_DIRECTION,
+                    InputOptions.CAR_POSITION_REL,
+                    InputOptions.CAR_VELOCITY_MAG,
+                ],
+                output_exclude=[
+                    OutputOptions.BOOST,
+                    OutputOptions.STEER,
+                    OutputOptions.E_BRAKE,
+                    OutputOptions.THROTTLE,
+                    OutputOptions.ROLL,
+                ]
+            )
 
-            directory='./training/{0}'.format(MODEL)
+            directory='../learning/training/{0}'.format(MODEL)
             filename='agent'
             agent = os.path.join(directory, os.path.splitext(filename)[0] + '.json') 
 
@@ -120,7 +143,7 @@ class MyBot(BaseAgent):
 
         # Drive at ball
         controls = self.last_state or SimpleControllerState(throttle=1)
-        controls.steer = steer_toward_target(my_car, target_location)
+        # controls.steer = steer_toward_target(my_car, target_location)
 
         self.set_controls_from_model(packet, controls)
 
@@ -132,9 +155,14 @@ class MyBot(BaseAgent):
         actions = self.get_actions(tick)
 
         if (len(actions) > 1):
-            do_jump, stick_magnitude = actions
-            controls.jump = actions[OutputOptions.JUMP][0]
-            controls.pitch = actions[OutputOptions.PITCH][0] - 1
+            controls.throttle = actions[OutputOptions.THROTTLE][0] - 1 if OutputOptions.THROTTLE in actions else controls.throttle
+            controls.pitch = actions[OutputOptions.PITCH][0] - 1 if OutputOptions.PITCH in actions else controls.pitch
+            controls.roll = actions[OutputOptions.ROLL][0] - 1 if OutputOptions.ROLL in actions else controls.roll
+            controls.yaw = actions[OutputOptions.STEER][0] - 1 if OutputOptions.STEER in actions else controls.yaw
+            controls.steer = actions[OutputOptions.STEER][0] - 1 if OutputOptions.STEER in actions else controls.steer
+            controls.boost = actions[OutputOptions.BOOST][0] if OutputOptions.BOOST in actions else controls.boost
+            controls.jump = actions[OutputOptions.JUMP][0] if OutputOptions.JUMP in actions else controls.jump
+            controls.handbrake = actions[OutputOptions.E_BRAKE][0] if OutputOptions.E_BRAKE in actions else controls.handbrake
 
         return controls
 
@@ -146,13 +174,6 @@ class MyBot(BaseAgent):
             states, terminal, reward = self.env.execute(actions=actions)
             self.agent.observe(terminal=terminal, reward=reward)
             if terminal: self.env.reset()
-            # self.internals = ints
-        # actions = agent.act(states=states)
-            # logging_utils.log_warn(ints, {})
-            # states, terminal, reward = self.env.execute(actions)
-            # self.agent.observe(reward, terminal)
-            # self.ac = actions
-            # logging_utils.log_warn(states,{}) logging_utils.log_warn(actions['do_jump'],{})
         else:
             try:
                 actions = self.matchcomms.incoming_broadcast.get(block=False)

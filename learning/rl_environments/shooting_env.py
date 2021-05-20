@@ -24,6 +24,9 @@ class ShootingEnvironment(RLEnvironment):
 		self.goal_value = 0
 		return super().reset()
 
+	def is_terminal(self):
+		return int(self.goal_scored)
+
 	def reward(self, rl_state):
 		goal_location = Vec3(0, GameValues.GOAL_CENTER_Y, GameValues.GOAL_CENTER_Z)
 		ball_velocity = Vec3(self.game_tick.game_ball.physics.velocity)	
@@ -34,7 +37,7 @@ class ShootingEnvironment(RLEnvironment):
 		# Distance from ball (smallesr)
 		ball_dist_value = reward_value(
 			rl_state[InputOptions.BALL_DISTANCE][0],
-			max_value=GameValues.FIELD_MAX_DISTANCE / 2,
+			max_value=GameValues.FIELD_MAX_DISTANCE / 4,
 			factor=0.1,
 			invert=True,
 		)
@@ -43,7 +46,7 @@ class ShootingEnvironment(RLEnvironment):
 			ball_velocity_towards_goal,
 			max_value=GameValues.BALL_MAX_VELOCITY - 2000,
 			power=2,
-			factor=1,
+			factor=3,
 		)
 		# Goal value based on distance with time decay and min (largest)
 		base_goal_value = 50

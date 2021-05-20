@@ -243,7 +243,10 @@ class RLEnvironment(Environment):
 		self.throttled_log("Reward: {0:.2f}".format(self.ep_reward))
 
 		# State, terminal, reward
-		return self.filter_states(self.rl_state), 1 if self.timestep >= self.max_timesteps else 0, reward
+		return self.filter_states(self.rl_state), self.is_terminal(), reward
+
+	def is_terminal(self):
+		return 1 if self.timestep >= self.max_timesteps else 0
 
 	def reward(self):
 		raise NotImplementedError

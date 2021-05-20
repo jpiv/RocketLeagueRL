@@ -21,11 +21,6 @@ class EnvGrader(Grader):
     runner: any = None
     counter = 0
 
-    # def render(self, renderer):
-    #     renderer.begin_rendering()
-    #     renderer.draw_string_2d(1500, 250, 3, 3, 'Reward: {0:.2f}'.format(self.env.ep_reward), renderer.black())
-    #     renderer.end_rendering()
-
     def set_match_comms(self, comms):
         self.env and self.env.setComms(comms)
 

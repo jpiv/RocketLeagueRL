@@ -26,12 +26,13 @@ class EnvGrader(Grader):
 
     def on_tick(self, tick):
         gm_tick = tick.game_tick_packet
+        
+        # self.env.setRLState(gm_tick)
         if self.env and self.env.update_throttle(gm_tick):
-            self.env.setRLState(gm_tick)
-            try:
-                next(self.runner)
-            except StopIteration:
-                pass
+            # try:
+            #     next(self.runner)
+            # except StopIteration:
+            #     pass
 
             if (self.env.fail):
                 self.env.fail = False

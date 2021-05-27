@@ -2,9 +2,11 @@ from tensorforce import Agent, Environment
 from rl_environments.rl_env import RLEnvironment
 from rl_environments.kickoff_env import KickoffEnvironment
 from rl_environments.shooting_env import ShootingEnvironment
-from rl_environments.game_values import InputOptions
+from rl_environments.game_values import InputOptions, OutputOptions
+
 from runner import Runner
 from tensorforce.core.networks.auto import AutoNetwork
+from rlbot.utils import public_utils, logging_utils
 
 # Pre-defined or custom environment
 # environment = Environment.create(
@@ -12,39 +14,54 @@ from tensorforce.core.networks.auto import AutoNetwork
 # )
 
 def create_agent():
-    max_time = 30 
+    max_time = 5
     frames_per_sec = 20
     max_timesteps = RLEnvironment.get_max_timesteps(max_time, frames_per_sec)
-    env = Environment.create(
-        environment=ShootingEnvironment,
+    shooting_env = dict(
+        # My custom kwargs 
+        # Max time in seconds
+        max_episode_timesteps=max_timesteps,
+        max_time=max_time,
+        frames_per_sec=frames_per_sec,
+        name='shooting',
+        message_throttle = 40,
+        input_exclude=[InputOptions.BALL_POSITION, InputOptions.CAR_HEIGHT, InputOptions.CAR_POSITION],
+        output_exclude=[],
+    )
+    kickoff_env = dict(
+        environment=KickoffEnvironment,
         max_episode_timesteps=max_timesteps,
         # My custom kwargs 
         # Max time in seconds
         max_time=max_time,
         frames_per_sec=frames_per_sec,
-        name='shooting',
-        message_throttle = 10,
+        message_throttle = 40,
         input_exclude=[InputOptions.BALL_POSITION, InputOptions.CAR_HEIGHT, InputOptions.CAR_POSITION],
-        output_exclude=[]
+        output_exclude=[
+            OutputOptions.JUMP,
+            OutputOptions.PITCH,
+            OutputOptions.ROLL,
+            OutputOptions.BOOST,
+            OutputOptions.E_BRAKE,
+            OutputOptions.THROTTLE,
+        ],
     )
-    # env = Environment.create(
-    #     environment=KickoffEnvironment,
-    #     max_episode_timesteps=max_timesteps,
-    #     # My custom kwargs 
-    #     # Max time in seconds
-    #     max_time=max_time,
-    #     frames_per_sec=frames_per_sec,
-    #     name='kickoff',
-    #     message_throttle = 20,
-    #     input_exclude=[],
-    #     output_exclude=[]
-    # )
+    envs = [
+        # Environment.create(environment=ShootingEnvironment, **kwargs),
+        Environment.create(name='kickoff-1', **kickoff_env),
+        # Environment.create(name='kickoff-2', **kickoff_env),
+        # Environment.create(name='kickoff-3', **kickoff_env),
+        # Environment.create(name='kickoff-4', **kickoff_env)
+    ]
+    num_envs = len(envs)
+
     # Instantiate a Tensorforce agent
     agent = dict(
         agent='double_dqn',
         memory=max_timesteps * 5,
-        states=env.states(),
-        actions=env.actions(),
+        states=envs[0].states(),
+        actions=envs[0].actions(),
+        parallel_interactions=num_envs,
         # Automatically configured network
         # PPO optimization parameters
         network=[
@@ -76,8 +93,9 @@ def create_agent():
         # Do not record agent-environment interaction trace
         recorder=None
     )
-    # agent = Agent.load(directory='./model', format='checkpoint', environment=env)
-    runner = Runner(agent=agent, environment=env, max_episode_timesteps=max_timesteps)
-    env.set_agent(runner.agent)
-    runner_gen = runner.run(num_episodes=5000, save_best_agent='best')
-    return env, runner_gen
+    # agent = Agent.load(directory='./model', format='checkpoint', environment=envs[0])
+    runner = Runner(agent=agent, environments=envs, num_parallel=num_envs, max_episode_timesteps=max_timesteps)
+    runner_gen = runner.run(num_episodes=25000, save_best_agent='best', batch_agent_calls=bool(num_envs - 1))
+
+if __name__ == '__main__':
+    create_agent()

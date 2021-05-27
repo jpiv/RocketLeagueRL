@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from math import pi
 
 from rlbot.utils.game_state_util import GameState, BoostState, BallState, CarState, Physics, Vector3, Rotator
-from rlbot.matchconfig.match_config import MatchConfig, PlayerConfig, Team
+from rlbot.matchconfig.match_config import MatchConfig, PlayerConfig, Team, MutatorConfig
 from rlbottraining.common_exercises.common_base_exercises import StrikerExercise
 from rlbottraining.rng import SeededRandomNumberGenerator
 from rlbottraining.match_configs import make_empty_match_config
@@ -17,9 +17,9 @@ from env_grader import EnvGrader
 import training_util
 
 
-import sys
-sys.path.append('C:\\Users\\John\\Desktop\\stuff\\RLBots\\learning')
-from agent_runner import create_agent
+# import sys
+# sys.path.append('C:\\Users\\John\\Desktop\\stuff\\RLBots\\learning')
+# from agent_runner import create_agent
 
 def make_match_config_with_my_bot() -> MatchConfig:
     # Makes a config which only has our bot in it for now.
@@ -80,11 +80,11 @@ class StrikerPatience(StrikerExercise):
         )
 
 
-env, runner = create_agent()
+# env, runner = create_agent()
 
-def make_default_playlist() -> Playlist:
+def make_default_playlist(env) -> Playlist:
     exercises = [
-        StrikerPatience('', EnvGrader(env, runner)),
+        StrikerPatience('', EnvGrader(env)),
         # StrikerPatience('', EnvGrader()),
     ]
     return add_my_bot_to_playlist(exercises)

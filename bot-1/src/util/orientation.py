@@ -33,6 +33,12 @@ class Orientation:
         self.right = Vec3(cy*sp*sr-cr*sy, sy*sp*sr+cr*cy, -cp*sr)
         self.up = Vec3(-cr*cy*sp-sr*sy, -cr*sy*sp+sr*cy, cp*cr)
 
+class OrientationGym:
+    def __init__(self, gym_rotation):
+        self.forward = Vec3(*gym_rotation.forward())
+        self.right = Vec3(*gym_rotation.right())
+        self.up = Vec3(*gym_rotation.up())
+
 
 # Sometimes things are easier, when everything is seen from your point of view.
 # This function lets you make any location the center of the world.

@@ -525,7 +525,6 @@ class Runner(object):
 
         # Runner loop
         while any(terminal <= 0 for terminal in self.prev_terminals):
-            yield None
             self.terminals = [None for _ in self.terminals]
 
             if self.batch_agent_calls:

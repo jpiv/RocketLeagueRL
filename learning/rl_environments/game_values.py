@@ -30,7 +30,7 @@ class OutputOptions(str, Enum):
 	E_BRAKE = 'e_brake'
 
 class GameValues(float, Enum):
-	GOAL_CENTER_Y = -5120
+	GOAL_CENTER_Y = 5120
 	GOAL_CENTER_Z = 321.39
 	# Max field Y value + goal depth
 	FIELD_MAX_Y = 5120 + 881
